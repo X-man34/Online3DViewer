@@ -231,7 +231,9 @@ export class Website
         this.SetUIState (WebsiteUIState.Intro);
 
         this.hashHandler.SetEventListener (this.OnHashChange.bind (this));
-        this.OnHashChange ();
+        if (!this.LoadModelFromQueryParameters ()) {
+            this.OnHashChange ();
+        }
 
         window.addEventListener ('resize', () => {
 			this.layouter.Resize ();
@@ -412,6 +414,37 @@ export class Website
             this.ClearModel ();
             this.SetUIState (WebsiteUIState.Intro);
         }
+    }
+
+    LoadModelFromQueryParameters ()
+    {
+        let queryParams = new URLSearchParams (window.location.search);
+        if (!queryParams.has ('model')) {
+            return false;
+        }
+
+        let modelUrl = queryParams.get ('model');
+        if (modelUrl === null || modelUrl.length === 0) {
+            return false;
+        }
+
+        let urls = [this.GetModelUrlFromQueryParameter (modelUrl)];
+        let importSettings = new ImportSettings ();
+        importSettings.defaultLineColor = this.settings.defaultLineColor;
+        importSettings.defaultColor = this.settings.defaultColor;
+        HandleEvent ('model_load_started', 'query');
+        this.LoadModelFromUrlList (urls, importSettings);
+        return true;
+    }
+
+    GetModelUrlFromQueryParameter (modelUrl)
+    {
+        let isWindowsAbsolutePath = /^[a-zA-Z]:[\\/]/.test (modelUrl);
+        let isUncPath = modelUrl.startsWith ('\\\\');
+        if (isWindowsAbsolutePath || isUncPath) {
+            return '../local-model?path=' + encodeURIComponent (modelUrl);
+        }
+        return modelUrl;
     }
 
     OpenFileBrowserDialog ()
