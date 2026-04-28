@@ -36,6 +36,8 @@ function GetContentType(filePath) {
     return mimeTypes.get(path.extname(filePath).toLowerCase()) || 'application/octet-stream';
 }
 
+
+
 function ServeFile(request, response, filePath) {
     fs.stat(filePath, (statError, stat) => {
         if (statError !== null || !stat.isFile()) {
