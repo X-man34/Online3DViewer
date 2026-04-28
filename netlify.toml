@@ -1,0 +1,8 @@
+[build]
+  command = "npm run build_website_dev"
+  publish = "."
+
+[[redirects]]
+  from = "/"
+  to = "/website/"
+  status = 301
