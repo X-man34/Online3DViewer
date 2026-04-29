@@ -1,5 +1,6 @@
 import { RGBColor } from '../model/color.js';
 import { ConvertColorToThreeColor, DisposeThreeObjects, GetLineSegmentsProjectedDistance } from '../threejs/threeutils.js';
+import { CreateSectionPlanes, IsPointClippedBySectionPlanes, SectionSettings } from './sectionmodel.js';
 
 import * as THREE from 'three';
 
@@ -125,8 +126,11 @@ export class ViewerMainModel
 
         this.mainModel = new ViewerModel (this.scene);
         this.edgeModel = new ViewerModel (this.scene);
+        this.sectionCapModel = new ViewerModel (this.scene);
 
         this.edgeSettings = new EdgeSettings (false, new RGBColor (0, 0, 0), 1);
+        this.sectionSettings = new SectionSettings ();
+        this.sectionPlanes = [];
         this.hasLines = false;
         this.hasPolygonOffset = false;
     }
@@ -144,6 +148,7 @@ export class ViewerMainModel
         if (this.edgeSettings.showEdges) {
             this.GenerateEdgeModel ();
         }
+        this.UpdateSectionClipping ();
         this.UpdatePolygonOffset ();
     }
 
@@ -179,6 +184,7 @@ export class ViewerMainModel
         } else {
             this.ClearEdgeModel ();
         }
+        this.UpdateSectionClipping ();
     }
 
     GenerateEdgeModel ()
@@ -197,7 +203,190 @@ export class ViewerMainModel
             this.edgeModel.AddObject (line);
         });
 
+        this.UpdateSectionClipping ();
         this.UpdatePolygonOffset ();
+    }
+
+    SetSectionSettings (sectionSettings)
+    {
+        this.sectionSettings = sectionSettings.Clone ();
+        this.sectionPlanes = CreateSectionPlanes (this.sectionSettings);
+        this.UpdateSectionClipping ();
+    }
+
+    GetSectionSettings ()
+    {
+        return this.sectionSettings.Clone ();
+    }
+
+    HasActiveSection ()
+    {
+        return this.sectionPlanes.length > 0;
+    }
+
+    UpdateSectionClipping ()
+    {
+        let clippingPlanes = this.sectionPlanes.map ((sectionPlane) => {
+            return sectionPlane.plane;
+        });
+        this.EnumerateMeshesAndLines ((mesh) => {
+            this.SetObjectClippingPlanes (mesh, clippingPlanes);
+        });
+        this.EnumerateEdges ((edge) => {
+            this.SetObjectClippingPlanes (edge, clippingPlanes);
+        });
+        this.UpdateSectionCapModel ();
+    }
+
+    SetObjectClippingPlanes (object, clippingPlanes)
+    {
+        function SetMaterialClippingPlanes (materials, clippingPlanes)
+        {
+            if (!Array.isArray (materials)) {
+                materials = [materials];
+            }
+            for (let material of materials) {
+                material.clippingPlanes = clippingPlanes.length === 0 ? null : clippingPlanes;
+                material.clipIntersection = false;
+                material.needsUpdate = true;
+            }
+        }
+
+        SetMaterialClippingPlanes (object.material, clippingPlanes);
+        if (object.userData.threeMaterials) {
+            SetMaterialClippingPlanes (object.userData.threeMaterials, clippingPlanes);
+        }
+    }
+
+    UpdateSectionCapModel ()
+    {
+        this.ClearSectionCapModel ();
+        if (this.mainModel.IsEmpty () || !this.HasActiveSection ()) {
+            return;
+        }
+        this.UpdateWorldMatrix ();
+
+        let boundingBox = this.GetBoundingBox ((meshUserData) => {
+            return true;
+        });
+        if (boundingBox === null) {
+            return;
+        }
+
+        let size = new THREE.Vector3 ();
+        boundingBox.getSize (size);
+        let center = new THREE.Vector3 ();
+        boundingBox.getCenter (center);
+        let capSize = Math.max (size.x, size.y, size.z) * 4.0;
+        if (capSize === 0.0) {
+            capSize = 1.0;
+        }
+
+        let capRoot = new THREE.Object3D ();
+        let clippingPlanes = this.sectionPlanes.map ((sectionPlane) => {
+            return sectionPlane.plane;
+        });
+
+        for (let sectionPlaneIndex = 0; sectionPlaneIndex < this.sectionPlanes.length; sectionPlaneIndex++) {
+            let sectionPlane = this.sectionPlanes[sectionPlaneIndex];
+            if (!sectionPlane.settings.showCap) {
+                continue;
+            }
+
+            let otherClippingPlanes = clippingPlanes.filter ((plane) => {
+                return plane !== sectionPlane.plane;
+            });
+            let renderOrderBase = 1000 + sectionPlaneIndex * 3;
+
+            this.EnumerateMeshes ((mesh) => {
+                if (!mesh.visible) {
+                    return;
+                }
+                capRoot.add (this.CreateStencilMesh (mesh, clippingPlanes, THREE.BackSide, THREE.IncrementWrapStencilOp, renderOrderBase));
+                capRoot.add (this.CreateStencilMesh (mesh, clippingPlanes, THREE.FrontSide, THREE.DecrementWrapStencilOp, renderOrderBase));
+            });
+
+            let capPlane = this.CreateCapPlane (sectionPlane, otherClippingPlanes, capSize, center, renderOrderBase + 1);
+            capRoot.add (capPlane);
+        }
+
+        this.sectionCapModel.SetRootObject (capRoot);
+    }
+
+    CreateStencilMesh (mesh, clippingPlanes, side, stencilZPass, renderOrder)
+    {
+        let material = new THREE.MeshBasicMaterial ({
+            depthWrite : false,
+            depthTest : false,
+            colorWrite : false,
+            stencilWrite : true,
+            stencilFunc : THREE.AlwaysStencilFunc,
+            side : side,
+            clippingPlanes : clippingPlanes,
+            stencilFail : THREE.KeepStencilOp,
+            stencilZFail : THREE.KeepStencilOp,
+            stencilZPass : stencilZPass
+        });
+        let stencilMesh = new THREE.Mesh (mesh.geometry, material);
+        stencilMesh.matrix.copy (mesh.matrixWorld);
+        stencilMesh.matrixAutoUpdate = false;
+        stencilMesh.frustumCulled = false;
+        stencilMesh.renderOrder = renderOrder;
+        return stencilMesh;
+    }
+
+    CreateCapPlane (sectionPlane, clippingPlanes, capSize, center, renderOrder)
+    {
+        let capMaterial = new THREE.MeshBasicMaterial ({
+            color : ConvertColorToThreeColor (sectionPlane.settings.capColor),
+            side : THREE.DoubleSide,
+            clippingPlanes : clippingPlanes,
+            stencilWrite : true,
+            stencilRef : 0,
+            stencilFunc : THREE.NotEqualStencilFunc,
+            stencilFail : THREE.ReplaceStencilOp,
+            stencilZFail : THREE.ReplaceStencilOp,
+            stencilZPass : THREE.ReplaceStencilOp
+        });
+
+        let capPlane = new THREE.Mesh (new THREE.PlaneGeometry (capSize, capSize), capMaterial);
+        capPlane.renderOrder = renderOrder;
+        capPlane.frustumCulled = false;
+        capPlane.onAfterRender = (renderer) => {
+            renderer.clearStencil ();
+        };
+
+        let capPosition = sectionPlane.plane.projectPoint (center, new THREE.Vector3 ());
+        capPlane.position.copy (capPosition);
+        capPlane.quaternion.setFromUnitVectors (
+            new THREE.Vector3 (0.0, 0.0, 1.0),
+            sectionPlane.plane.normal
+        );
+        return capPlane;
+    }
+
+    ClearSectionCapModel ()
+    {
+        let rootObject = this.sectionCapModel.GetRootObject ();
+        if (rootObject === null) {
+            return;
+        }
+        rootObject.traverse ((obj) => {
+            if (obj.isMesh) {
+                if (Array.isArray (obj.material)) {
+                    for (let material of obj.material) {
+                        material.dispose ();
+                    }
+                } else {
+                    obj.material.dispose ();
+                }
+                if (obj.geometry !== null && obj.geometry.type === 'PlaneGeometry') {
+                    obj.geometry.dispose ();
+                }
+            }
+        });
+        this.sectionCapModel.scene.remove (rootObject);
+        this.sectionCapModel.rootObject = null;
     }
 
     GetBoundingBox (needToProcess)
@@ -232,6 +421,7 @@ export class ViewerMainModel
     {
         this.mainModel.Clear ();
         this.ClearEdgeModel ();
+        this.ClearSectionCapModel ();
     }
 
     ClearEdgeModel ()
@@ -320,6 +510,9 @@ export class ViewerMainModel
         for (let i = 0; i < iSectObjects.length; i++) {
             let iSectObject = iSectObjects[i];
             if (!iSectObject.object.visible) {
+                continue;
+            }
+            if (IsPointClippedBySectionPlanes (this.sectionPlanes, iSectObject.point)) {
                 continue;
             }
             if (iSectObject.object.isMesh) {

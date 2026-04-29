@@ -139,3 +139,83 @@ div.ov_popup.sidebar
 {
 	width: 344px;
 }
+
+div.ov_sidebar_temporary
+{
+	padding-right: 10px;
+	border-right: 1px solid var(--ov_border_color);
+	overflow: auto;
+}
+
+div.ov_section_plane
+{
+	margin-bottom: 16px;
+	padding-bottom: 8px;
+	border-bottom: 1px solid var(--ov_border_color);
+}
+
+div.ov_section_row
+{
+	margin: 8px 0px;
+	overflow: auto;
+}
+
+div.ov_section_label
+{
+	width: 70px;
+	padding-top: 5px;
+	float: left;
+}
+
+div.ov_section_row div.ov_select_container
+{
+	width: 90px;
+	float: left;
+}
+
+div.ov_section_row input.ov_slider
+{
+	width: 130px;
+	margin-top: 12px;
+	float: left;
+}
+
+input.ov_section_number
+{
+	width: 78px;
+	margin-left: 10px;
+	padding: 4px;
+	border: 1px solid var(--ov_border_color);
+	border-radius: 4px;
+	float: left;
+}
+
+input.ov_section_color
+{
+	width: 34px;
+	height: 26px;
+	padding: 0px;
+	border: 1px solid var(--ov_border_color);
+	background: transparent;
+	float: left;
+}
+
+div.ov_section_small_button
+{
+	width: 70px;
+	margin-right: 10px;
+	float: left;
+}
+
+div.ov_section_button_row
+{
+	margin-top: 12px;
+	overflow: auto;
+}
+
+div.ov_section_button
+{
+	width: 80px;
+	margin-right: 8px;
+	float: left;
+}
