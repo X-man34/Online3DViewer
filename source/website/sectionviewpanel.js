@@ -121,7 +121,7 @@ export class SectionViewPanel
 
         let axisRow = AddDiv (sectionDiv, 'ov_section_row');
         AddDiv (axisRow, 'ov_section_label', Loc ('Axis'));
-        let axisSelect = AddSelect (axisRow, ['X', 'Y', 'Z'], GetAxisIndex (planeSettings.axis), (selectedIndex) => {
+        AddSelect (axisRow, ['X', 'Y', 'Z'], GetAxisIndex (planeSettings.axis), (selectedIndex) => {
             planeSettings.axis = GetAxisFromIndex (selectedIndex);
             this.UpdateOffsetControls (planeIndex);
             this.OnChanged ();
