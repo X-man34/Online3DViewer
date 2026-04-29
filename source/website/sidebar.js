@@ -116,7 +116,7 @@ export class Sidebar
         ShowDomElement (this.panelSet.menuDiv, false);
         ShowDomElement (this.panelSet.contentDiv, false);
         this.temporaryPanelDiv = AddDiv (this.mainDiv, 'ov_sidebar_temporary ov_thin_scrollbar');
-        SetDomElementOuterWidth (this.mainDiv, Math.max (this.temporaryPanelState.width, 320));
+        SetDomElementOuterWidth (this.mainDiv, Math.max (this.temporaryPanelState.width, 400));
 
         this.callbacks.onShowHidePanels (true);
         this.callbacks.onResizeRequested ();

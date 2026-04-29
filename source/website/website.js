@@ -834,7 +834,7 @@ export class Website
         });
         this.measureTool.SetButton (measureToolButton);
         AddSeparator (this.toolbar, ['only_on_model']);
-        this.sectionToolButton = AddPushButton (this.toolbar, 'model', Loc ('Section View'), ['only_on_model'], (isSelected) => {
+        this.sectionToolButton = AddPushButton (this.toolbar, 'sectionView', Loc ('Section View'), ['only_on_model'], (isSelected) => {
             if (isSelected) {
                 this.navigator.SetSelection (null);
                 this.measureTool.SetActive (false);

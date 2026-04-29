@@ -72,9 +72,16 @@ export class SectionViewPanel
         ClearDomElement (this.parentDiv);
         AddDiv (this.parentDiv, 'ov_sidebar_title', Loc ('Section View'));
 
-        let globalRow = AddDiv (this.parentDiv, 'ov_section_row');
-        this.enabledCheckbox = AddCheckbox (globalRow, 'section_enabled', Loc ('Enable Section View'), this.settings.enabled, () => {
-            this.settings.enabled = this.enabledCheckbox.checked;
+        let buttonRow = AddDiv (this.parentDiv, 'ov_section_button_row');
+        this.AddIconButton (buttonRow, 'ov_section_button', Loc ('Apply'), 'check', () => {
+            this.callbacks.onApply (this.settings.Clone ());
+        });
+        this.AddIconButton (buttonRow, 'ov_section_button outline', Loc ('Cancel'), 'close', () => {
+            this.callbacks.onCancel ();
+        });
+        this.AddIconButton (buttonRow, 'ov_section_button outline', Loc ('Reset'), 'reset', () => {
+            this.settings = CreateDefaultSectionSettings (this.boundingBox);
+            this.Init ();
             this.OnChanged ();
         });
 
@@ -82,23 +89,23 @@ export class SectionViewPanel
             this.AddPlaneControls (i);
         }
 
-        let buttonRow = AddDiv (this.parentDiv, 'ov_section_button_row');
-        let applyButton = AddDiv (buttonRow, 'ov_button ov_section_button', Loc ('Apply'));
-        applyButton.addEventListener ('click', () => {
-            this.callbacks.onApply (this.settings.Clone ());
-        });
-        let cancelButton = AddDiv (buttonRow, 'ov_button outline ov_section_button', Loc ('Cancel'));
-        cancelButton.addEventListener ('click', () => {
-            this.callbacks.onCancel ();
-        });
-        let resetButton = AddDiv (buttonRow, 'ov_button outline ov_section_button', Loc ('Reset'));
-        resetButton.addEventListener ('click', () => {
-            this.settings = CreateDefaultSectionSettings (this.boundingBox);
-            this.Init ();
-            this.OnChanged ();
-        });
-
         this.OnChanged ();
+    }
+
+    AddIconButton (parentDiv, className, title, icon, onClick)
+    {
+        let button = AddDiv (parentDiv, 'ov_button ' + className);
+        button.setAttribute ('title', title);
+        button.setAttribute ('alt', title);
+        if (icon === 'close') {
+            AddDomElement (button, 'i', 'icon icon-close');
+        } else if (icon === 'check') {
+            AddDomElement (button, 'span', 'ov_section_symbol_icon', '✓');
+        } else if (icon === 'reset') {
+            AddDomElement (button, 'span', 'ov_section_symbol_icon', '↺');
+        }
+        button.addEventListener ('click', onClick);
+        return button;
     }
 
     AddPlaneControls (planeIndex)
