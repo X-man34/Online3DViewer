@@ -139,3 +139,100 @@ div.ov_popup.sidebar
 {
 	width: 344px;
 }
+
+div.ov_sidebar_temporary
+{
+	padding-right: 10px;
+	border-right: 1px solid var(--ov_border_color);
+	overflow: auto;
+}
+
+div.ov_section_plane
+{
+	margin-bottom: 16px;
+	padding-bottom: 8px;
+	border-bottom: 1px solid var(--ov_border_color);
+}
+
+div.ov_section_row
+{
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 8px 0px;
+	overflow: visible;
+}
+
+div.ov_section_label
+{
+	flex: 0 0 86px;
+	white-space: nowrap;
+}
+
+div.ov_section_row div.ov_select_container
+{
+	flex: 0 0 90px;
+}
+
+div.ov_section_row input.ov_slider
+{
+	flex: 1 1 auto;
+	min-width: 130px;
+}
+
+input.ov_section_number
+{
+	box-sizing: border-box;
+	flex: 0 0 78px;
+	width: 78px;
+	padding: 4px;
+	border: 1px solid var(--ov_border_color);
+	border-radius: 4px;
+}
+
+input.ov_section_color
+{
+	flex: 0 0 34px;
+	width: 34px;
+	height: 26px;
+	padding: 0px;
+	border: 1px solid var(--ov_border_color);
+	background: transparent;
+}
+
+div.ov_section_small_button
+{
+	flex: 0 0 70px;
+	width: 70px;
+}
+
+div.ov_section_button_row
+{
+	display: flex;
+	gap: 8px;
+	margin: 0px 0px 14px 0px;
+	overflow: visible;
+}
+
+div.ov_section_button
+{
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+	width: 34px;
+	height: 30px;
+	padding: 0px;
+	font-size: 18px;
+	line-height: 1;
+}
+
+div.ov_section_button i
+{
+	font-size: 14px;
+}
+
+span.ov_section_symbol_icon
+{
+	font-weight: bold;
+}

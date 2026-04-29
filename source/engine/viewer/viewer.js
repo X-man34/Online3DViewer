@@ -172,6 +172,7 @@ export class Viewer
         this.shadingModel = null;
         this.navigation = null;
         this.upVector = null;
+        this.axisTriad = null;
         this.settings = {
             animationSteps : 40
         };
@@ -184,11 +185,13 @@ export class Viewer
 
         let parameters = {
             canvas : this.canvas,
-            antialias : true
+            antialias : true,
+            stencil : true
         };
 
         this.renderer = new THREE.WebGLRenderer (parameters);
         this.renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
+        this.renderer.localClippingEnabled = true;
 
         if (window.devicePixelRatio) {
             this.renderer.setPixelRatio (window.devicePixelRatio);
@@ -202,6 +205,7 @@ export class Viewer
 
         this.InitNavigation ();
         this.InitShading ();
+        this.InitAxisTriad ();
 
         this.Render ();
     }
@@ -236,6 +240,17 @@ export class Viewer
         });
         this.shadingModel.UpdateShading ();
         this.Render ();
+    }
+
+    SetSectionSettings (sectionSettings)
+    {
+        this.mainModel.SetSectionSettings (sectionSettings);
+        this.Render ();
+    }
+
+    GetSectionSettings ()
+    {
+        return this.mainModel.GetSectionSettings ();
     }
 
     SetBackgroundColor (color)
@@ -416,6 +431,7 @@ export class Viewer
 
         this.shadingModel.UpdateByCamera (navigationCamera);
         this.renderer.render (this.scene, this.camera);
+        this.RenderAxisTriad ();
     }
 
     SetMainObject (object)
@@ -460,6 +476,7 @@ export class Viewer
                 edge.visible = visible;
             }
         });
+        this.mainModel.UpdateSectionClipping ();
         this.Render ();
     }
 
@@ -480,6 +497,7 @@ export class Viewer
                 }
             }
         });
+        this.mainModel.UpdateSectionClipping ();
 
         this.Render ();
     }
@@ -541,6 +559,74 @@ export class Viewer
     InitShading  ()
     {
         this.shadingModel = new ShadingModel (this.scene);
+    }
+
+    InitAxisTriad ()
+    {
+        function CreateAxisLabel (text, color, position)
+        {
+            let canvas = document.createElement ('canvas');
+            canvas.width = 64;
+            canvas.height = 64;
+            let context = canvas.getContext ('2d');
+            context.font = 'bold 34px Arial';
+            context.textAlign = 'center';
+            context.textBaseline = 'middle';
+            context.fillStyle = color;
+            context.fillText (text, 32, 32);
+
+            let texture = new THREE.CanvasTexture (canvas);
+            let material = new THREE.SpriteMaterial ({
+                map : texture,
+                depthTest : false,
+                depthWrite : false
+            });
+            let sprite = new THREE.Sprite (material);
+            sprite.position.copy (position);
+            sprite.scale.set (0.25, 0.25, 0.25);
+            return sprite;
+        }
+
+        let scene = new THREE.Scene ();
+        let camera = new THREE.OrthographicCamera (-1.2, 1.2, 1.2, -1.2, 0.1, 10.0);
+        camera.position.set (0.0, 0.0, 4.0);
+        camera.lookAt (new THREE.Vector3 (0.0, 0.0, 0.0));
+
+        let root = new THREE.Object3D ();
+        root.add (new THREE.AxesHelper (0.75));
+        root.add (CreateAxisLabel ('X', '#ff3333', new THREE.Vector3 (0.98, 0.0, 0.0)));
+        root.add (CreateAxisLabel ('Y', '#33aa33', new THREE.Vector3 (0.0, 0.98, 0.0)));
+        root.add (CreateAxisLabel ('Z', '#3366ff', new THREE.Vector3 (0.0, 0.0, 0.98)));
+        scene.add (root);
+
+        this.axisTriad = {
+            scene : scene,
+            camera : camera,
+            root : root
+        };
+    }
+
+    RenderAxisTriad ()
+    {
+        if (this.axisTriad === null) {
+            return;
+        }
+
+        let canvasSize = this.GetCanvasSize ();
+        let viewportSize = Math.min (100, canvasSize.width / 4.0, canvasSize.height / 4.0);
+        if (viewportSize < 40) {
+            return;
+        }
+
+        this.axisTriad.root.quaternion.copy (this.camera.quaternion).invert ();
+
+        this.renderer.clearDepth ();
+        this.renderer.setScissorTest (true);
+        this.renderer.setScissor (10, 10, viewportSize, viewportSize);
+        this.renderer.setViewport (10, 10, viewportSize, viewportSize);
+        this.renderer.render (this.axisTriad.scene, this.axisTriad.camera);
+        this.renderer.setScissorTest (false);
+        this.renderer.setViewport (0, 0, canvasSize.width, canvasSize.height);
     }
 
     GetShadingType ()

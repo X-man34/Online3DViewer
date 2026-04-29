@@ -1,6 +1,6 @@
 @font-face {
     font-family: "O3DVIcons";
-    src: url("./O3DVIcons.woff?d27bdb5af135068ed4a9350e285e132e") format("woff");
+    src: url("./O3DVIcons.woff?ab0f7e6d00340575f9da4352938a1b5b") format("woff");
 }
 
 i[class^="icon-"]:before, i[class*=" icon-"]:before {
@@ -131,33 +131,36 @@ i[class^="icon-"]:before, i[class*=" icon-"]:before {
 .icon-print3d:before {
     content: "\f127";
 }
-.icon-settings:before {
+.icon-sectionView:before {
     content: "\f128";
 }
-.icon-share:before {
+.icon-settings:before {
     content: "\f129";
 }
-.icon-snapshot:before {
+.icon-share:before {
     content: "\f12a";
 }
-.icon-tree_mesh:before {
+.icon-snapshot:before {
     content: "\f12b";
 }
-.icon-tree_view:before {
+.icon-tree_mesh:before {
     content: "\f12c";
 }
-.icon-twitter:before {
+.icon-tree_view:before {
     content: "\f12d";
 }
-.icon-up_y:before {
+.icon-twitter:before {
     content: "\f12e";
 }
-.icon-up_z:before {
+.icon-up_y:before {
     content: "\f12f";
 }
-.icon-visible:before {
+.icon-up_z:before {
     content: "\f130";
 }
-.icon-warning:before {
+.icon-visible:before {
     content: "\f131";
+}
+.icon-warning:before {
+    content: "\f132";
 }

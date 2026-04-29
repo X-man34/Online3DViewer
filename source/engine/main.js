@@ -72,6 +72,7 @@ import { Camera, CameraIsEqual3D, NavigationMode, ProjectionMode } from './viewe
 import { GetIntegerFromStyle, GetDomElementExternalWidth, GetDomElementExternalHeight, GetDomElementInnerDimensions, GetDomElementClientCoordinates, CreateDomElement, AddDomElement, AddDiv, ClearDomElement, InsertDomElementBefore, InsertDomElementAfter, ShowDomElement, IsDomElementVisible, SetDomElementWidth, SetDomElementHeight, GetDomElementOuterWidth, GetDomElementOuterHeight, SetDomElementOuterWidth, SetDomElementOuterHeight, CreateDiv } from './viewer/domutils.js';
 import { EmbeddedViewer, Init3DViewerFromUrlList, Init3DViewerFromFileList, Init3DViewerElements } from './viewer/embeddedviewer.js';
 import { MouseInteraction, TouchInteraction, ClickDetector, Navigation, NavigationType } from './viewer/navigation.js';
+import { SectionPlaneAxis, SectionPlaneSettings, SectionSettings, CreateSectionPlanes, IsPointClippedBySectionPlanes } from './viewer/sectionmodel.js';
 import { EnvironmentSettings, ShadingModel } from './viewer/shadingmodel.js';
 import { CameraValidator, UpVector, Viewer, GetDefaultCamera, TraverseThreeObject, GetShadingTypeOfObject } from './viewer/viewer.js';
 import { ViewerModel, EdgeSettings, ViewerMainModel, SetThreeMeshPolygonOffset, IntersectionMode } from './viewer/viewermodel.js';
@@ -346,6 +347,11 @@ export {
     ClickDetector,
     Navigation,
     NavigationType,
+    SectionPlaneAxis,
+    SectionPlaneSettings,
+    SectionSettings,
+    CreateSectionPlanes,
+    IsPointClippedBySectionPlanes,
     EnvironmentSettings,
     ShadingModel,
     CameraValidator,

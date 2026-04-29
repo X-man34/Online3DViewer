@@ -11,6 +11,7 @@ import { HashHandler } from './hashhandler.js';
 import { Navigator, Selection, SelectionType } from './navigator.js';
 import { CameraSettings, Settings, Theme } from './settings.js';
 import { Sidebar } from './sidebar.js';
+import { CreateDefaultSectionSettings, SectionViewPanel } from './sectionviewpanel.js';
 import { ThemeHandler } from './themehandler.js';
 import { ThreeModelLoaderUI } from './threemodelloaderui.js';
 import { Toolbar } from './toolbar.js';
@@ -27,6 +28,7 @@ import { CloseAllDialogs } from './dialog.js';
 import { CreateVerticalSplitter } from './splitter.js';
 import { EnumeratePlugins, PluginType } from './pluginregistry.js';
 import { EnvironmentSettings } from '../engine/viewer/shadingmodel.js';
+import { SectionSettings } from '../engine/viewer/sectionmodel.js';
 import { IntersectionMode } from '../engine/viewer/viewermodel.js';
 import { Loc } from '../engine/core/localization.js';
 
@@ -188,6 +190,9 @@ export class Website
         this.cameraSettings = new CameraSettings ();
         this.viewer = new Viewer ();
         this.measureTool = new MeasureTool (this.viewer, this.settings);
+        this.sectionSettings = new SectionSettings ();
+        this.sectionToolButton = null;
+        this.sectionViewPanel = null;
         this.hashHandler = new HashHandler ();
         this.toolbar = new Toolbar (this.parameters.toolbarDiv);
         this.navigator = new Navigator (this.parameters.navigatorDiv);
@@ -292,6 +297,11 @@ export class Website
         this.sidebar.Clear ();
 
         this.measureTool.SetActive (false);
+        this.sectionSettings = new SectionSettings ();
+        this.viewer.SetSectionSettings (this.sectionSettings);
+        if (this.sectionToolButton !== null) {
+            this.sectionToolButton.SetSelected (false);
+        }
     }
 
     OnModelLoaded (importResult, threeObject)
@@ -300,6 +310,7 @@ export class Website
         this.parameters.fileNameDiv.innerHTML = importResult.mainFile;
         this.viewer.SetMainObject (threeObject);
         this.viewer.SetUpVector (Direction.Y, false);
+        this.ResetSectionSettingsForModel ();
         this.navigator.FillTree (importResult);
         this.sidebar.UpdateControlsVisibility ();
         this.FitModelToWindow (true);
@@ -583,6 +594,87 @@ export class Website
         this.viewer.SetEdgeSettings (this.settings.edgeSettings);
     }
 
+    ResetSectionSettingsForModel ()
+    {
+        let boundingBox = this.viewer.GetBoundingBox ((meshUserData) => {
+            return true;
+        });
+        this.sectionSettings = CreateDefaultSectionSettings (boundingBox);
+        this.sectionSettings.enabled = false;
+        this.viewer.SetSectionSettings (this.sectionSettings);
+        if (this.sectionToolButton !== null) {
+            this.sectionToolButton.SetSelected (false);
+        }
+    }
+
+    GetVisibleModelBoundingBox ()
+    {
+        if (!this.HasLoadedModel ()) {
+            return null;
+        }
+        return this.viewer.GetBoundingBox ((meshUserData) => {
+            return this.navigator.IsMeshVisible (meshUserData.originalMeshInstance.id);
+        });
+    }
+
+    HasActiveSectionView ()
+    {
+        return this.sectionSettings.HasActivePlane ();
+    }
+
+    ShowSectionViewPanel ()
+    {
+        let previousSettings = this.sectionSettings.Clone ();
+        let panelDiv = this.sidebar.ShowTemporaryPanel ();
+        let previewSettings = this.sectionSettings.Clone ();
+        previewSettings.enabled = true;
+        let hasEnabledPlane = false;
+        for (let plane of previewSettings.planes) {
+            if (plane.enabled) {
+                hasEnabledPlane = true;
+                break;
+            }
+        }
+        if (!hasEnabledPlane) {
+            previewSettings.planes[0].enabled = true;
+        }
+
+        this.sectionViewPanel = new SectionViewPanel (panelDiv, previewSettings, this.GetVisibleModelBoundingBox (), {
+            onPreview : (settings) => {
+                this.viewer.SetSectionSettings (settings);
+            },
+            onApply : (settings) => {
+                this.sectionSettings = settings.Clone ();
+                this.viewer.SetSectionSettings (this.sectionSettings);
+                this.sidebar.CloseTemporaryPanel ();
+                this.sectionViewPanel = null;
+                this.sectionToolButton.SetSelected (this.HasActiveSectionView ());
+            },
+            onCancel : () => {
+                this.sectionSettings = previousSettings.Clone ();
+                this.viewer.SetSectionSettings (this.sectionSettings);
+                this.sidebar.CloseTemporaryPanel ();
+                this.sectionViewPanel = null;
+                this.sectionToolButton.SetSelected (this.HasActiveSectionView ());
+            }
+        });
+        requestAnimationFrame (() => {
+            this.layouter.Resize ();
+            this.viewer.Render ();
+        });
+    }
+
+    DisableSectionView ()
+    {
+        this.sidebar.CloseTemporaryPanel ();
+        this.sectionViewPanel = null;
+        this.sectionSettings.enabled = false;
+        this.viewer.SetSectionSettings (this.sectionSettings);
+        if (this.sectionToolButton !== null) {
+            this.sectionToolButton.SetSelected (false);
+        }
+    }
+
     UpdateEnvironmentMap ()
     {
         let envMapPath = 'assets/envmaps/' + this.settings.environmentMapName + '/';
@@ -741,7 +833,17 @@ export class Website
             this.measureTool.SetActive (isSelected);
         });
         this.measureTool.SetButton (measureToolButton);
-        AddSeparator (this.toolbar, ['only_full_width', 'only_on_model']);
+        AddSeparator (this.toolbar, ['only_on_model']);
+        this.sectionToolButton = AddPushButton (this.toolbar, 'sectionView', Loc ('Section View'), ['only_on_model'], (isSelected) => {
+            if (isSelected) {
+                this.navigator.SetSelection (null);
+                this.measureTool.SetActive (false);
+                this.ShowSectionViewPanel ();
+            } else {
+                this.DisableSectionView ();
+            }
+        });
+        AddSeparator (this.toolbar, ['only_on_model']);
         AddButton (this.toolbar, 'download', Loc ('Download'), ['only_full_width', 'only_on_model'], () => {
             HandleEvent ('model_downloaded', '');
             let importer = this.modelLoaderUI.GetImporter ();
