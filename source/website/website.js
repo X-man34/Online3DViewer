@@ -628,6 +628,8 @@ export class Website
         let panelDiv = this.sidebar.ShowTemporaryPanel ();
         let previewSettings = this.sectionSettings.Clone ();
         previewSettings.enabled = true;
+        previewSettings.usePartColorCaps = false;
+        previewSettings.showPlaneOverlays = true;
         let hasEnabledPlane = false;
         for (let plane of previewSettings.planes) {
             if (plane.enabled) {
@@ -641,10 +643,15 @@ export class Website
 
         this.sectionViewPanel = new SectionViewPanel (panelDiv, previewSettings, this.GetVisibleModelBoundingBox (), {
             onPreview : (settings) => {
-                this.viewer.SetSectionSettings (settings);
+                let previewSettings = settings.Clone ();
+                previewSettings.usePartColorCaps = false;
+                previewSettings.showPlaneOverlays = true;
+                this.viewer.SetSectionSettings (previewSettings);
             },
             onApply : (settings) => {
                 this.sectionSettings = settings.Clone ();
+                this.sectionSettings.usePartColorCaps = true;
+                this.sectionSettings.showPlaneOverlays = false;
                 this.viewer.SetSectionSettings (this.sectionSettings);
                 this.sidebar.CloseTemporaryPanel ();
                 this.sectionViewPanel = null;
@@ -652,6 +659,7 @@ export class Website
             },
             onCancel : () => {
                 this.sectionSettings = previousSettings.Clone ();
+                this.sectionSettings.showPlaneOverlays = false;
                 this.viewer.SetSectionSettings (this.sectionSettings);
                 this.sidebar.CloseTemporaryPanel ();
                 this.sectionViewPanel = null;
@@ -669,6 +677,7 @@ export class Website
         this.sidebar.CloseTemporaryPanel ();
         this.sectionViewPanel = null;
         this.sectionSettings.enabled = false;
+        this.sectionSettings.showPlaneOverlays = false;
         this.viewer.SetSectionSettings (this.sectionSettings);
         if (this.sectionToolButton !== null) {
             this.sectionToolButton.SetSelected (false);

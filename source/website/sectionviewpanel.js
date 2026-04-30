@@ -1,5 +1,5 @@
 import { Loc } from '../engine/core/localization.js';
-import { RGBColor, RGBColorToHexString, HexStringToRGBColor } from '../engine/model/color.js';
+import { RGBColor } from '../engine/model/color.js';
 import { AddDiv, AddDomElement, ClearDomElement } from '../engine/viewer/domutils.js';
 import { SectionPlaneAxis, SectionSettings } from '../engine/viewer/sectionmodel.js';
 import { AddCheckbox, AddRangeSlider, AddSelect } from './utils.js';
@@ -158,16 +158,6 @@ export class SectionViewPanel
         });
         let capCheckbox = AddCheckbox (flipRow, 'section_cap_' + planeIndex.toString (), Loc ('Show Cap'), planeSettings.showCap, () => {
             planeSettings.showCap = capCheckbox.checked;
-            this.OnChanged ();
-        });
-
-        let colorRow = AddDiv (sectionDiv, 'ov_section_row');
-        AddDiv (colorRow, 'ov_section_label', Loc ('Cap Color'));
-        let colorInput = AddDomElement (colorRow, 'input', 'ov_section_color');
-        colorInput.setAttribute ('type', 'color');
-        colorInput.value = '#' + RGBColorToHexString (planeSettings.capColor);
-        colorInput.addEventListener ('input', () => {
-            planeSettings.capColor = HexStringToRGBColor (colorInput.value.substring (1));
             this.OnChanged ();
         });
 

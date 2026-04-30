@@ -289,31 +289,77 @@ export class ViewerMainModel
 
         for (let sectionPlaneIndex = 0; sectionPlaneIndex < this.sectionPlanes.length; sectionPlaneIndex++) {
             let sectionPlane = this.sectionPlanes[sectionPlaneIndex];
-            if (!sectionPlane.settings.showCap) {
-                continue;
-            }
-
             let otherClippingPlanes = clippingPlanes.filter ((plane) => {
                 return plane !== sectionPlane.plane;
             });
-            let renderOrderBase = 1000 + sectionPlaneIndex * 3;
 
-            this.EnumerateMeshes ((mesh) => {
-                if (!mesh.visible) {
-                    return;
-                }
-                capRoot.add (this.CreateStencilMesh (mesh, clippingPlanes, THREE.BackSide, THREE.IncrementWrapStencilOp, renderOrderBase));
-                capRoot.add (this.CreateStencilMesh (mesh, clippingPlanes, THREE.FrontSide, THREE.DecrementWrapStencilOp, renderOrderBase));
-            });
+            let renderOrderBase = 1000 + sectionPlaneIndex * 100000;
+            if (this.sectionSettings.showPlaneOverlays) {
+                capRoot.add (this.CreateSectionPlaneOverlay (sectionPlane, capSize, center, renderOrderBase + 99990));
+            }
 
-            let capPlane = this.CreateCapPlane (sectionPlane, otherClippingPlanes, capSize, center, renderOrderBase + 1);
-            capRoot.add (capPlane);
+            if (sectionPlane.settings.showCap) {
+                let capItemIndex = 0;
+                this.EnumerateMeshes ((mesh) => {
+                    if (!mesh.visible) {
+                        return;
+                    }
+                    for (let capRenderItem of this.GetCapRenderItems (mesh)) {
+                        let renderOrder = renderOrderBase + capItemIndex * 3;
+                        capRoot.add (this.CreateStencilMesh (mesh, capRenderItem.geometry, capRenderItem.disposeGeometry, clippingPlanes, THREE.BackSide, THREE.IncrementWrapStencilOp, renderOrder));
+                        capRoot.add (this.CreateStencilMesh (mesh, capRenderItem.geometry, false, clippingPlanes, THREE.FrontSide, THREE.DecrementWrapStencilOp, renderOrder));
+                        capRoot.add (this.CreateCapPlane (sectionPlane, otherClippingPlanes, capSize, center, renderOrder + 1, capRenderItem.material));
+                        capItemIndex += 1;
+                    }
+                });
+            }
         }
 
         this.sectionCapModel.SetRootObject (capRoot);
     }
 
-    CreateStencilMesh (mesh, clippingPlanes, side, stencilZPass, renderOrder)
+    GetCapRenderItems (mesh)
+    {
+        let meshMaterials = mesh.material;
+        if (!Array.isArray (meshMaterials)) {
+            meshMaterials = [meshMaterials];
+        }
+
+        if (mesh.geometry.groups.length === 0) {
+            return [{
+                geometry : mesh.geometry,
+                disposeGeometry : false,
+                material : meshMaterials[0]
+            }];
+        }
+
+        let renderItems = [];
+        for (let group of mesh.geometry.groups) {
+            renderItems.push ({
+                geometry : this.CreateGeometryGroupReference (mesh.geometry, group),
+                disposeGeometry : true,
+                material : meshMaterials[group.materialIndex] || meshMaterials[0]
+            });
+        }
+        return renderItems;
+    }
+
+    CreateGeometryGroupReference (geometry, group)
+    {
+        let groupGeometry = new THREE.BufferGeometry ();
+        if (geometry.index !== null) {
+            groupGeometry.setIndex (geometry.index);
+        }
+        for (let attributeName of Object.keys (geometry.attributes)) {
+            groupGeometry.setAttribute (attributeName, geometry.attributes[attributeName]);
+        }
+        groupGeometry.setDrawRange (group.start, group.count);
+        groupGeometry.boundingBox = geometry.boundingBox;
+        groupGeometry.boundingSphere = geometry.boundingSphere;
+        return groupGeometry;
+    }
+
+    CreateStencilMesh (mesh, geometry, disposeGeometry, clippingPlanes, side, stencilZPass, renderOrder)
     {
         let material = new THREE.MeshBasicMaterial ({
             depthWrite : false,
@@ -327,18 +373,27 @@ export class ViewerMainModel
             stencilZFail : THREE.KeepStencilOp,
             stencilZPass : stencilZPass
         });
-        let stencilMesh = new THREE.Mesh (mesh.geometry, material);
+        let stencilMesh = new THREE.Mesh (geometry, material);
         stencilMesh.matrix.copy (mesh.matrixWorld);
         stencilMesh.matrixAutoUpdate = false;
         stencilMesh.frustumCulled = false;
         stencilMesh.renderOrder = renderOrder;
+        stencilMesh.userData.disposeGeometry = disposeGeometry;
         return stencilMesh;
     }
 
-    CreateCapPlane (sectionPlane, clippingPlanes, capSize, center, renderOrder)
+    GetCapMaterialColor (sectionPlane, sourceMaterial)
+    {
+        if (this.sectionSettings.usePartColorCaps && sourceMaterial !== null && sourceMaterial.color !== undefined) {
+            return sourceMaterial.color.clone ();
+        }
+        return ConvertColorToThreeColor (sectionPlane.settings.capColor);
+    }
+
+    CreateCapPlane (sectionPlane, clippingPlanes, capSize, center, renderOrder, sourceMaterial)
     {
         let capMaterial = new THREE.MeshBasicMaterial ({
-            color : ConvertColorToThreeColor (sectionPlane.settings.capColor),
+            color : this.GetCapMaterialColor (sectionPlane, sourceMaterial),
             side : THREE.DoubleSide,
             clippingPlanes : clippingPlanes,
             stencilWrite : true,
@@ -352,17 +407,55 @@ export class ViewerMainModel
         let capPlane = new THREE.Mesh (new THREE.PlaneGeometry (capSize, capSize), capMaterial);
         capPlane.renderOrder = renderOrder;
         capPlane.frustumCulled = false;
+        capPlane.userData.disposeGeometry = true;
         capPlane.onAfterRender = (renderer) => {
             renderer.clearStencil ();
         };
 
+        this.SetSectionPlaneObjectPosition (capPlane, sectionPlane, center);
+        return capPlane;
+    }
+
+    CreateSectionPlaneOverlay (sectionPlane, capSize, center, renderOrder)
+    {
+        let overlayRoot = new THREE.Object3D ();
+        let color = ConvertColorToThreeColor (sectionPlane.settings.capColor);
+        let planeGeometry = new THREE.PlaneGeometry (capSize, capSize);
+        let planeMaterial = new THREE.MeshBasicMaterial ({
+            color : color,
+            side : THREE.DoubleSide,
+            transparent : true,
+            opacity : 0.18,
+            depthWrite : false
+        });
+        let planeMesh = new THREE.Mesh (planeGeometry, planeMaterial);
+        planeMesh.renderOrder = renderOrder;
+        planeMesh.frustumCulled = false;
+        planeMesh.userData.disposeGeometry = true;
+
+        let borderGeometry = new THREE.EdgesGeometry (planeGeometry);
+        let borderMaterial = new THREE.LineBasicMaterial ({
+            color : color
+        });
+        let border = new THREE.LineSegments (borderGeometry, borderMaterial);
+        border.renderOrder = renderOrder + 1;
+        border.frustumCulled = false;
+        border.userData.disposeGeometry = true;
+
+        overlayRoot.add (planeMesh);
+        overlayRoot.add (border);
+        this.SetSectionPlaneObjectPosition (overlayRoot, sectionPlane, center);
+        return overlayRoot;
+    }
+
+    SetSectionPlaneObjectPosition (object, sectionPlane, center)
+    {
         let capPosition = sectionPlane.plane.projectPoint (center, new THREE.Vector3 ());
-        capPlane.position.copy (capPosition);
-        capPlane.quaternion.setFromUnitVectors (
+        object.position.copy (capPosition);
+        object.quaternion.setFromUnitVectors (
             new THREE.Vector3 (0.0, 0.0, 1.0),
             sectionPlane.plane.normal
         );
-        return capPlane;
     }
 
     ClearSectionCapModel ()
@@ -372,7 +465,7 @@ export class ViewerMainModel
             return;
         }
         rootObject.traverse ((obj) => {
-            if (obj.isMesh) {
+            if (obj.isMesh || obj.isLineSegments) {
                 if (Array.isArray (obj.material)) {
                     for (let material of obj.material) {
                         material.dispose ();
@@ -380,7 +473,7 @@ export class ViewerMainModel
                 } else {
                     obj.material.dispose ();
                 }
-                if (obj.geometry !== null && obj.geometry.type === 'PlaneGeometry') {
+                if (obj.geometry !== null && obj.userData.disposeGeometry) {
                     obj.geometry.dispose ();
                 }
             }
