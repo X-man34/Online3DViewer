@@ -8,6 +8,8 @@ describe ('Section Model', function () {
     it ('Default Initialization', function () {
         let settings = new OV.SectionSettings ();
         assert.strictEqual (settings.enabled, false);
+        assert.strictEqual (settings.usePartColorCaps, true);
+        assert.strictEqual (settings.showPlaneOverlays, false);
         assert.strictEqual (settings.planes.length, 3);
         assert.strictEqual (settings.planes[0].axis, OV.SectionPlaneAxis.X);
         assert.strictEqual (settings.planes[1].axis, OV.SectionPlaneAxis.Y);
@@ -18,6 +20,8 @@ describe ('Section Model', function () {
     it ('Clone', function () {
         let settings = new OV.SectionSettings ();
         settings.enabled = true;
+        settings.usePartColorCaps = false;
+        settings.showPlaneOverlays = true;
         settings.planes[0].enabled = true;
         settings.planes[0].offset = 12.5;
         settings.planes[0].angle1 = 30.0;
@@ -33,6 +37,8 @@ describe ('Section Model', function () {
         assert.strictEqual (settings.planes[0].offset, 12.5);
         assert.strictEqual (settings.planes[0].angle1, 30.0);
         assert.strictEqual (settings.planes[0].angle2, -15.0);
+        assert.strictEqual (cloned.usePartColorCaps, false);
+        assert.strictEqual (cloned.showPlaneOverlays, true);
         assert.deepStrictEqual (settings.planes[0].capColor, new OV.RGBColor (1, 2, 3));
         assert.strictEqual (cloned.HasActivePlane (), true);
     });

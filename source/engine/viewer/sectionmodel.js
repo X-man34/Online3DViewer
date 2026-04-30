@@ -43,6 +43,8 @@ export class SectionSettings
     constructor ()
     {
         this.enabled = false;
+        this.usePartColorCaps = true;
+        this.showPlaneOverlays = false;
         this.planes = [
             new SectionPlaneSettings (SectionPlaneAxis.X),
             new SectionPlaneSettings (SectionPlaneAxis.Y),
@@ -54,6 +56,8 @@ export class SectionSettings
     {
         let cloned = new SectionSettings ();
         cloned.enabled = this.enabled;
+        cloned.usePartColorCaps = this.usePartColorCaps;
+        cloned.showPlaneOverlays = this.showPlaneOverlays;
         cloned.planes = this.planes.map ((plane) => {
             return plane.Clone ();
         });
