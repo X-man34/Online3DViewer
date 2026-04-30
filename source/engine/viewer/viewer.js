@@ -566,24 +566,25 @@ export class Viewer
         function CreateAxisLabel (text, color, position)
         {
             let canvas = document.createElement ('canvas');
-            canvas.width = 64;
-            canvas.height = 64;
+            canvas.width = 96;
+            canvas.height = 96;
             let context = canvas.getContext ('2d');
-            context.font = 'bold 34px Arial';
+            context.font = 'bold 58px Arial';
             context.textAlign = 'center';
             context.textBaseline = 'middle';
             context.fillStyle = color;
-            context.fillText (text, 32, 32);
+            context.fillText (text, 48, 48);
 
             let texture = new THREE.CanvasTexture (canvas);
             let material = new THREE.SpriteMaterial ({
                 map : texture,
+                transparent : true,
                 depthTest : false,
                 depthWrite : false
             });
             let sprite = new THREE.Sprite (material);
             sprite.position.copy (position);
-            sprite.scale.set (0.25, 0.25, 0.25);
+            sprite.scale.set (0.36, 0.36, 0.36);
             return sprite;
         }
 
@@ -620,13 +621,16 @@ export class Viewer
 
         this.axisTriad.root.quaternion.copy (this.camera.quaternion).invert ();
 
+        let oldAutoClear = this.renderer.autoClear;
         this.renderer.clearDepth ();
+        this.renderer.autoClear = false;
         this.renderer.setScissorTest (true);
         this.renderer.setScissor (10, 10, viewportSize, viewportSize);
         this.renderer.setViewport (10, 10, viewportSize, viewportSize);
         this.renderer.render (this.axisTriad.scene, this.axisTriad.camera);
         this.renderer.setScissorTest (false);
         this.renderer.setViewport (0, 0, canvasSize.width, canvasSize.height);
+        this.renderer.autoClear = oldAutoClear;
     }
 
     GetShadingType ()
