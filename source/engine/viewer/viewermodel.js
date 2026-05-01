@@ -202,7 +202,8 @@ export class ViewerMainModel
             }));
             line.applyMatrix4 (mesh.matrixWorld);
             line.userData = mesh.userData;
-            this.StoreOriginalObjectPosition (line);
+            let edgeOriginalPosition = line.position.clone ().sub (this.GetComponentTranslation (mesh.userData.originalMeshInstance.id));
+            this.StoreOriginalObjectPosition (line, edgeOriginalPosition);
             line.visible = mesh.visible;
             this.edgeModel.AddObject (line);
         });
@@ -584,9 +585,9 @@ export class ViewerMainModel
         });
     }
 
-    StoreOriginalObjectPosition (object)
+    StoreOriginalObjectPosition (object, position)
     {
-        object.ovOriginalPosition = object.position.clone ();
+        object.ovOriginalPosition = position === undefined ? object.position.clone () : position.clone ();
     }
 
     GetComponentTranslationKey (meshInstanceId)
