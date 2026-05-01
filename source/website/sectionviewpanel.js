@@ -2,7 +2,7 @@ import { Loc } from '../engine/core/localization.js';
 import { RGBColor } from '../engine/model/color.js';
 import { AddDiv, AddDomElement, ClearDomElement } from '../engine/viewer/domutils.js';
 import { SectionPlaneAxis, SectionSettings } from '../engine/viewer/sectionmodel.js';
-import { AddCheckbox, AddRangeSlider, AddSelect } from './utils.js';
+import { AddCheckbox, AddRangeSlider, AddSelect, AddSvgIconElement } from './utils.js';
 
 function GetAxisIndex (axis)
 {
@@ -98,7 +98,7 @@ export class SectionViewPanel
         button.setAttribute ('title', title);
         button.setAttribute ('alt', title);
         if (icon === 'close') {
-            AddDomElement (button, 'i', 'icon icon-close');
+            AddSvgIconElement (button, 'close');
         } else if (icon === 'check') {
             AddDomElement (button, 'span', 'ov_section_symbol_icon', '✓');
         } else if (icon === 'reset') {

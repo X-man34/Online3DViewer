@@ -250,6 +250,8 @@ export class Navigation
 		this.onMouseClick = null;
 		this.onMouseMove = null;
 		this.onContext = null;
+		this.mouseDragHandler = null;
+		this.activeMouseDragHandler = false;
 
 		if (this.canvas.addEventListener) {
 			this.canvas.addEventListener ('mousedown', this.OnMouseDown.bind (this));
@@ -280,6 +282,12 @@ export class Navigation
 	SetContextMenuHandler (onContext)
 	{
 		this.onContext = onContext;
+	}
+
+	SetMouseDragHandler (mouseDragHandler)
+	{
+		this.mouseDragHandler = mouseDragHandler;
+		this.activeMouseDragHandler = false;
 	}
 
 	GetNavigationMode ()
@@ -369,6 +377,11 @@ export class Navigation
 
 		this.mouse.Down (this.canvas, ev);
 		this.clickDetector.Start (this.mouse.GetPosition ());
+
+		if (this.mouseDragHandler !== null && this.mouseDragHandler.onMouseDown !== undefined) {
+			let mouseCoords = this.mouse.GetPosition ();
+			this.activeMouseDragHandler = this.mouseDragHandler.onMouseDown (mouseCoords, ev.which, ev);
+		}
 	}
 
 	OnMouseMove (ev)
@@ -381,6 +394,14 @@ export class Navigation
 		}
 
 		if (!this.mouse.IsButtonDown ()) {
+			return;
+		}
+
+		if (this.activeMouseDragHandler) {
+			if (this.mouseDragHandler !== null && this.mouseDragHandler.onMouseMove !== undefined) {
+				let mouseCoords = this.mouse.GetPosition ();
+				this.mouseDragHandler.onMouseMove (mouseCoords, ev);
+			}
 			return;
 		}
 
@@ -420,6 +441,14 @@ export class Navigation
 		this.mouse.Up (this.canvas, ev);
 		this.clickDetector.End ();
 
+		if (this.activeMouseDragHandler) {
+			if (this.mouseDragHandler !== null && this.mouseDragHandler.onMouseUp !== undefined) {
+				let mouseCoords = this.mouse.GetPosition ();
+				this.mouseDragHandler.onMouseUp (mouseCoords, ev.which, ev);
+			}
+			this.activeMouseDragHandler = false;
+		}
+
 		if (this.clickDetector.IsClick ()) {
 			let mouseCoords = this.mouse.GetPosition ();
 			this.Click (ev.which, mouseCoords);
@@ -430,6 +459,13 @@ export class Navigation
 	{
 		this.mouse.Leave (this.canvas, ev);
 		this.clickDetector.Cancel ();
+		if (this.activeMouseDragHandler) {
+			if (this.mouseDragHandler !== null && this.mouseDragHandler.onMouseLeave !== undefined) {
+				let mouseCoords = this.mouse.GetPosition ();
+				this.mouseDragHandler.onMouseLeave (mouseCoords, ev);
+			}
+			this.activeMouseDragHandler = false;
+		}
 	}
 
 	OnTouchStart (ev)

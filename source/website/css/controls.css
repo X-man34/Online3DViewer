@@ -1,9 +1,15 @@
 div.ov_svg_icon
 {
 	color: var(--ov_icon_color);
-	font-size: 18px;
 	width: 18px;
 	height: 18px;
+	background-color: currentColor;
+	mask-position: center;
+	mask-repeat: no-repeat;
+	mask-size: contain;
+	-webkit-mask-position: center;
+	-webkit-mask-repeat: no-repeat;
+	-webkit-mask-size: contain;
 }
 
 div.ov_svg_icon.left

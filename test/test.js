@@ -29,6 +29,7 @@ import exportimport_test from './tests/exportimport_test.js';
 import property_test from './tests/property_test.js';
 import parameterlist_test from './tests/parameterlist_test.js';
 import sectionmodel_test from './tests/sectionmodel_test.js';
+import viewermodel_test from './tests/viewermodel_test.js';
 
 process.chdir (path.resolve ());
 SetGlobals ();
@@ -60,3 +61,4 @@ exportimport_test ();
 property_test ();
 parameterlist_test ();
 sectionmodel_test ();
+viewermodel_test ();
