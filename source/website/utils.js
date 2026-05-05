@@ -131,7 +131,8 @@ export function CreateSvgIconElement (iconName, className)
     if (className) {
         iconDiv.classList.add (className);
     }
-    AddDomElement (iconDiv, 'i', 'icon icon-' + iconName);
+    iconDiv.style.maskImage = 'url("../assets/icons/' + iconName + '.svg")';
+    iconDiv.style.webkitMaskImage = 'url("../assets/icons/' + iconName + '.svg")';
     return iconDiv;
 }
 
@@ -144,8 +145,8 @@ export function AddSvgIconElement (parentElement, iconName, className)
 
 export function SetSvgIconImageElement (iconElement, iconName)
 {
-    let iconDiv = iconElement.firstChild;
-    iconDiv.className = 'icon icon-' + iconName;
+    iconElement.style.maskImage = 'url("../assets/icons/' + iconName + '.svg")';
+    iconElement.style.webkitMaskImage = 'url("../assets/icons/' + iconName + '.svg")';
 }
 
 export function CreateInlineColorCircle (color)

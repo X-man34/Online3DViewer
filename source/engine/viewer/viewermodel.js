@@ -131,13 +131,16 @@ export class ViewerMainModel
         this.edgeSettings = new EdgeSettings (false, new RGBColor (0, 0, 0), 1);
         this.sectionSettings = new SectionSettings ();
         this.sectionPlanes = [];
+        this.componentTranslations = new Map ();
         this.hasLines = false;
         this.hasPolygonOffset = false;
     }
 
     SetMainObject (mainObject)
     {
+        this.componentTranslations.clear ();
         this.mainModel.SetRootObject (mainObject);
+        this.StoreOriginalObjectPositions ();
         this.hasLines = false;
         this.hasPolygonOffset = false;
 
@@ -199,10 +202,13 @@ export class ViewerMainModel
             }));
             line.applyMatrix4 (mesh.matrixWorld);
             line.userData = mesh.userData;
+            let edgeOriginalPosition = line.position.clone ().sub (this.GetComponentTranslation (mesh.userData.originalMeshInstance.id));
+            this.StoreOriginalObjectPosition (line, edgeOriginalPosition);
             line.visible = mesh.visible;
             this.edgeModel.AddObject (line);
         });
 
+        this.ApplyComponentTranslations ();
         this.UpdateSectionClipping ();
         this.UpdatePolygonOffset ();
     }
@@ -486,6 +492,7 @@ export class ViewerMainModel
     {
         let hasMesh = false;
         let boundingBox = new THREE.Box3 ();
+        this.UpdateWorldMatrix ();
         this.EnumerateMeshesAndLines ((mesh) => {
             if (needToProcess (mesh.userData)) {
                 boundingBox.union (new THREE.Box3 ().setFromObject (mesh));
@@ -515,6 +522,7 @@ export class ViewerMainModel
         this.mainModel.Clear ();
         this.ClearEdgeModel ();
         this.ClearSectionCapModel ();
+        this.componentTranslations.clear ();
     }
 
     ClearEdgeModel ()
@@ -568,6 +576,90 @@ export class ViewerMainModel
     HasLinesOrEdges ()
     {
         return this.hasLines || this.edgeSettings.showEdges;
+    }
+
+    StoreOriginalObjectPositions ()
+    {
+        this.EnumerateMeshesAndLines ((object) => {
+            this.StoreOriginalObjectPosition (object);
+        });
+    }
+
+    StoreOriginalObjectPosition (object, position)
+    {
+        object.ovOriginalPosition = position === undefined ? object.position.clone () : position.clone ();
+    }
+
+    GetComponentTranslationKey (meshInstanceId)
+    {
+        return meshInstanceId.GetKey ();
+    }
+
+    GetComponentTranslation (meshInstanceId)
+    {
+        let key = this.GetComponentTranslationKey (meshInstanceId);
+        if (!this.componentTranslations.has (key)) {
+            return new THREE.Vector3 (0.0, 0.0, 0.0);
+        }
+        return this.componentTranslations.get (key).clone ();
+    }
+
+    SetComponentTranslation (meshInstanceId, translation)
+    {
+        let key = this.GetComponentTranslationKey (meshInstanceId);
+        if (translation.lengthSq () < 1.0e-16) {
+            this.componentTranslations.delete (key);
+        } else {
+            this.componentTranslations.set (key, translation.clone ());
+        }
+        this.ApplyComponentTranslations ();
+        this.UpdateSectionCapModel ();
+    }
+
+    ResetComponentTranslations ()
+    {
+        this.componentTranslations.clear ();
+        this.ApplyComponentTranslations ();
+        this.UpdateSectionCapModel ();
+    }
+
+    HasComponentTranslations ()
+    {
+        return this.componentTranslations.size > 0;
+    }
+
+    ApplyComponentTranslations ()
+    {
+        this.EnumerateMeshesAndLines ((object) => {
+            this.ApplyObjectComponentTranslation (object);
+        });
+        this.EnumerateEdges ((object) => {
+            this.ApplyObjectComponentTranslation (object);
+        });
+        this.UpdateWorldMatrix ();
+    }
+
+    ApplyObjectComponentTranslation (object)
+    {
+        if (object.userData.originalMeshInstance === undefined) {
+            return;
+        }
+        if (object.ovOriginalPosition === undefined) {
+            this.StoreOriginalObjectPosition (object);
+        }
+
+        let translation = this.GetComponentTranslation (object.userData.originalMeshInstance.id);
+        let localTranslation = translation.clone ();
+        if (object.parent !== null) {
+            object.parent.updateWorldMatrix (true, false);
+            let localOrigin = new THREE.Vector3 (0.0, 0.0, 0.0);
+            let localTranslated = translation.clone ();
+            object.parent.worldToLocal (localOrigin);
+            object.parent.worldToLocal (localTranslated);
+            localTranslation = localTranslated.sub (localOrigin);
+        }
+        object.position.copy (object.ovOriginalPosition).add (localTranslation);
+        object.updateMatrixWorld (true);
     }
 
     UpdatePolygonOffset ()

@@ -220,6 +220,11 @@ export class Viewer
         this.navigation.SetMouseMoveHandler (onMouseMove);
     }
 
+    SetMouseDragHandler (mouseDragHandler)
+    {
+        this.navigation.SetMouseDragHandler (mouseDragHandler);
+    }
+
     SetContextMenuHandler (onContext)
     {
         this.navigation.SetContextMenuHandler (onContext);
@@ -399,6 +404,45 @@ export class Viewer
         let newCamera = this.upVector.Flip (oldCamera);
         this.navigation.MoveCamera (newCamera, 0);
         this.Render ();
+    }
+
+    GetMouseRay (mouseCoords)
+    {
+        let canvasSize = this.GetCanvasSize ();
+        let mousePos = new THREE.Vector2 ();
+        mousePos.x = (mouseCoords.x / canvasSize.width) * 2 - 1;
+        mousePos.y = -(mouseCoords.y / canvasSize.height) * 2 + 1;
+
+        let raycaster = new THREE.Raycaster ();
+        raycaster.setFromCamera (mousePos, this.camera);
+        return raycaster.ray.clone ();
+    }
+
+    GetCameraViewDirection ()
+    {
+        return this.camera.getWorldDirection (new THREE.Vector3 ()).normalize ();
+    }
+
+    GetComponentTranslation (meshInstanceId)
+    {
+        return this.mainModel.GetComponentTranslation (meshInstanceId);
+    }
+
+    SetComponentTranslation (meshInstanceId, translation)
+    {
+        this.mainModel.SetComponentTranslation (meshInstanceId, translation);
+        this.Render ();
+    }
+
+    ResetComponentTranslations ()
+    {
+        this.mainModel.ResetComponentTranslations ();
+        this.Render ();
+    }
+
+    HasComponentTranslations ()
+    {
+        return this.mainModel.HasComponentTranslations ();
     }
 
     Render ()

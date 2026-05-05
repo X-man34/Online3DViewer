@@ -32,6 +32,8 @@ import { SectionSettings } from '../engine/viewer/sectionmodel.js';
 import { IntersectionMode } from '../engine/viewer/viewermodel.js';
 import { Loc } from '../engine/core/localization.js';
 
+import * as THREE from 'three';
+
 const WebsiteUIState =
 {
     Undefined : 0,
@@ -181,6 +183,89 @@ class WebsiteLayouter
     }
 }
 
+class ComponentDragController
+{
+    constructor (viewer)
+    {
+        this.viewer = viewer;
+        this.isActive = false;
+        this.drag = null;
+    }
+
+    IsActive ()
+    {
+        return this.isActive;
+    }
+
+    SetActive (isActive)
+    {
+        this.isActive = isActive;
+        if (!this.isActive) {
+            this.drag = null;
+        }
+    }
+
+    Reset ()
+    {
+        this.drag = null;
+        this.viewer.ResetComponentTranslations ();
+    }
+
+    OnMouseDown (mouseCoordinates, button)
+    {
+        if (!this.isActive || button !== 1) {
+            return false;
+        }
+
+        let intersection = this.viewer.GetMeshIntersectionUnderMouse (IntersectionMode.MeshOnly, mouseCoordinates);
+        if (intersection === null) {
+            return false;
+        }
+
+        let meshInstanceId = intersection.object.userData.originalMeshInstance.id;
+        let dragPlane = new THREE.Plane ().setFromNormalAndCoplanarPoint (
+            this.viewer.GetCameraViewDirection (),
+            intersection.point
+        );
+
+        this.drag = {
+            meshInstanceId : meshInstanceId,
+            plane : dragPlane,
+            startPoint : intersection.point.clone (),
+            startTranslation : this.viewer.GetComponentTranslation (meshInstanceId)
+        };
+        return true;
+    }
+
+    OnMouseMove (mouseCoordinates)
+    {
+        if (this.drag === null) {
+            return;
+        }
+
+        let ray = this.viewer.GetMouseRay (mouseCoordinates);
+        let currentPoint = new THREE.Vector3 ();
+        if (ray.intersectPlane (this.drag.plane, currentPoint) === null) {
+            return;
+        }
+
+        let translation = this.drag.startTranslation.clone ().add (
+            currentPoint.sub (this.drag.startPoint)
+        );
+        this.viewer.SetComponentTranslation (this.drag.meshInstanceId, translation);
+    }
+
+    OnMouseUp ()
+    {
+        this.drag = null;
+    }
+
+    OnMouseLeave ()
+    {
+        this.drag = null;
+    }
+}
+
 export class Website
 {
     constructor (parameters)
@@ -190,6 +275,8 @@ export class Website
         this.cameraSettings = new CameraSettings ();
         this.viewer = new Viewer ();
         this.measureTool = new MeasureTool (this.viewer, this.settings);
+        this.componentDragController = new ComponentDragController (this.viewer);
+        this.componentDragToolButton = null;
         this.sectionSettings = new SectionSettings ();
         this.sectionToolButton = null;
         this.sectionViewPanel = null;
@@ -230,6 +317,12 @@ export class Website
 
         this.viewer.SetMouseClickHandler (this.OnModelClicked.bind (this));
         this.viewer.SetMouseMoveHandler (this.OnModelMouseMoved.bind (this));
+        this.viewer.SetMouseDragHandler ({
+            onMouseDown : this.OnModelDragMouseDown.bind (this),
+            onMouseMove : this.OnModelDragMouseMove.bind (this),
+            onMouseUp : this.OnModelDragMouseUp.bind (this),
+            onMouseLeave : this.OnModelDragMouseLeave.bind (this)
+        });
         this.viewer.SetContextMenuHandler (this.OnModelContextMenu.bind (this));
 
         this.layouter.Init ();
@@ -297,6 +390,8 @@ export class Website
         this.sidebar.Clear ();
 
         this.measureTool.SetActive (false);
+        this.SetComponentDragMode (false);
+        this.viewer.ResetComponentTranslations ();
         this.sectionSettings = new SectionSettings ();
         this.viewer.SetSectionSettings (this.sectionSettings);
         if (this.sectionToolButton !== null) {
@@ -340,6 +435,26 @@ export class Website
         if (this.measureTool.IsActive ()) {
             this.measureTool.MouseMove (mouseCoordinates);
         }
+    }
+
+    OnModelDragMouseDown (mouseCoordinates, button)
+    {
+        return this.componentDragController.OnMouseDown (mouseCoordinates, button);
+    }
+
+    OnModelDragMouseMove (mouseCoordinates)
+    {
+        this.componentDragController.OnMouseMove (mouseCoordinates);
+    }
+
+    OnModelDragMouseUp ()
+    {
+        this.componentDragController.OnMouseUp ();
+    }
+
+    OnModelDragMouseLeave ()
+    {
+        this.componentDragController.OnMouseLeave ();
     }
 
     OnModelContextMenu (globalMouseCoordinates, mouseCoordinates)
@@ -684,6 +799,38 @@ export class Website
         }
     }
 
+    CloseSectionViewPanelForTool ()
+    {
+        if (this.sectionViewPanel === null) {
+            return;
+        }
+        this.sidebar.CloseTemporaryPanel ();
+        this.sectionViewPanel = null;
+        this.sectionSettings.showPlaneOverlays = false;
+        this.viewer.SetSectionSettings (this.sectionSettings);
+        if (this.sectionToolButton !== null) {
+            this.sectionToolButton.SetSelected (this.HasActiveSectionView ());
+        }
+    }
+
+    SetComponentDragMode (isActive)
+    {
+        if (isActive) {
+            this.measureTool.SetActive (false);
+            this.CloseSectionViewPanelForTool ();
+            this.navigator.SetSelection (null);
+        }
+        this.componentDragController.SetActive (isActive);
+        if (this.componentDragToolButton !== null) {
+            this.componentDragToolButton.SetSelected (isActive);
+        }
+    }
+
+    ResetComponentPositions ()
+    {
+        this.componentDragController.Reset ();
+    }
+
     UpdateEnvironmentMap ()
     {
         let envMapPath = 'assets/envmaps/' + this.settings.environmentMapName + '/';
@@ -838,13 +985,24 @@ export class Website
         AddSeparator (this.toolbar, ['only_full_width', 'only_on_model']);
         let measureToolButton = AddPushButton (this.toolbar, 'measure', Loc ('Measure'), ['only_full_width', 'only_on_model'], (isSelected) => {
             HandleEvent ('measure_tool_activated', isSelected ? 'on' : 'off');
+            if (isSelected) {
+                this.SetComponentDragMode (false);
+            }
             this.navigator.SetSelection (null);
             this.measureTool.SetActive (isSelected);
         });
         this.measureTool.SetButton (measureToolButton);
         AddSeparator (this.toolbar, ['only_on_model']);
+        this.componentDragToolButton = AddPushButton (this.toolbar, 'drag_components', Loc ('Drag Components'), ['only_on_model'], (isSelected) => {
+            this.SetComponentDragMode (isSelected);
+        });
+        AddButton (this.toolbar, 'reset_components', Loc ('Reset Component Positions'), ['only_on_model'], () => {
+            this.ResetComponentPositions ();
+        });
+        AddSeparator (this.toolbar, ['only_on_model']);
         this.sectionToolButton = AddPushButton (this.toolbar, 'sectionView', Loc ('Section View'), ['only_on_model'], (isSelected) => {
             if (isSelected) {
+                this.SetComponentDragMode (false);
                 this.navigator.SetSelection (null);
                 this.measureTool.SetActive (false);
                 this.ShowSectionViewPanel ();
