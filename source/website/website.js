@@ -549,18 +549,50 @@ export class Website
             return false;
         }
 
-        let modelUrl = queryParams.get ('model');
-        if (modelUrl === null || modelUrl.length === 0) {
+        let modelParam = queryParams.get ('model');
+        if (modelParam === null || modelParam.length === 0) {
             return false;
         }
 
-        let urls = [this.GetModelUrlFromQueryParameter (modelUrl)];
-        let importSettings = new ImportSettings ();
-        importSettings.defaultLineColor = this.settings.defaultLineColor;
-        importSettings.defaultColor = this.settings.defaultColor;
-        HandleEvent ('model_load_started', 'query');
-        this.LoadModelFromUrlList (urls, importSettings);
+        if (modelParam.startsWith ('http://') || modelParam.startsWith ('https://')) {
+            let urls = [this.GetModelUrlFromQueryParameter (modelParam)];
+            let importSettings = new ImportSettings ();
+            importSettings.defaultLineColor = this.settings.defaultLineColor;
+            importSettings.defaultColor = this.settings.defaultColor;
+            HandleEvent ('model_load_started', 'query');
+            this.LoadModelFromUrlList (urls, importSettings);
+        } else {
+            this.LoadModelFromShortName (modelParam);
+        }
         return true;
+    }
+
+    LoadModelFromShortName (shortName)
+    {
+        const bucketBaseUrl = BUCKET_BASE_URL;
+        if (!bucketBaseUrl) {
+            return;
+        }
+        fetch (bucketBaseUrl + '/index.json').then ((response) => {
+            if (!response.ok) {
+                return null;
+            }
+            return response.json ();
+        }).then ((index) => {
+            if (!index) {
+                return;
+            }
+            let entry = index.models.find ((m) => m.name === shortName);
+            if (!entry) {
+                return;
+            }
+            let urls = [bucketBaseUrl + '/' + entry.file];
+            let importSettings = new ImportSettings ();
+            importSettings.defaultLineColor = this.settings.defaultLineColor;
+            importSettings.defaultColor = this.settings.defaultColor;
+            HandleEvent ('model_load_started', 'query');
+            this.LoadModelFromUrlList (urls, importSettings);
+        }).catch (() => {});
     }
 
     GetModelUrlFromQueryParameter (modelUrl)
