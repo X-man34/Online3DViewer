@@ -56,7 +56,8 @@ export function GetShadingTypeOfObject (mainObject)
     let shadingType = null;
     TraverseThreeObject (mainObject, (obj) => {
         if (obj.isMesh) {
-            for (const material of obj.material) {
+            const materials = Array.isArray (obj.material) ? obj.material : [obj.material];
+            for (const material of materials) {
                 if (material.type === 'MeshPhongMaterial') {
                     shadingType = ShadingType.Phong;
                 } else if (material.type === 'MeshStandardMaterial') {
