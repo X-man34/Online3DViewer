@@ -4,6 +4,7 @@ import { RevokeObjectUrl } from '../io/bufferutils.js';
 import { MaterialSource } from '../model/material.js';
 import { ConvertModelToThreeObject, ModelToThreeConversionOutput, ModelToThreeConversionParams } from './threeconverter.js';
 import { ConvertColorToThreeColor, HasHighpDriverIssue } from './threeutils.js';
+import { GltfNativeLoader, IsGltfInputFiles } from './gltfloader.js';
 
 import * as THREE from 'three';
 
@@ -12,6 +13,7 @@ export class ThreeModelLoader
     constructor ()
     {
         this.importer = new Importer ();
+        this.gltfLoader = new GltfNativeLoader ();
         this.inProgress = false;
         this.defaultMaterials = null;
         this.objectUrls = null;
@@ -26,6 +28,11 @@ export class ThreeModelLoader
     LoadModel (inputFiles, settings, callbacks)
     {
         if (this.inProgress) {
+            return;
+        }
+
+        if (IsGltfInputFiles (inputFiles)) {
+            this.gltfLoader.LoadModel (inputFiles, callbacks);
             return;
         }
 
@@ -122,5 +129,7 @@ export class ThreeModelLoader
     {
         this.RevokeObjectUrls ();
         this.importer = null;
+        this.gltfLoader.Destroy ();
+        this.gltfLoader = null;
     }
 }
